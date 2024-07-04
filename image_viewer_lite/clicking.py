@@ -206,7 +206,7 @@ class PointMover:
             RA, Dec = self.wcs.wcs_pix2world([self.cur_x], [self.cur_y], 0)
             xlabel = Angle(RA * u.deg).to_string(u.hour, precision=1)[0]
             ylabel = Angle(Dec * u.deg).to_string(u.deg, precision=1)[0]
-            if self.zunit is not 'unidentified_keyword':
+            if self.zunit != 'unidentified_keyword':
                 assert False, "self.zunit for title not implemented yet!"
             else:
                 zlabel ='N/A'
