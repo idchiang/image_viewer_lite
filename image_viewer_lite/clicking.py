@@ -117,12 +117,14 @@ class PointMover:
             xticks = self.ax_main.get_xticks()
             RA, Dec = self.wcs.wcs_pix2world(xticks, [self.cur_y] * len(xticks), 0)
             xlabels = Angle(RA * u.deg).to_string(u.hour, precision=1)
+            self.ax_main.set_xticks(xticks)
             self.ax_main.set_xticklabels(xlabels, rotation=30)
             self.ax_main.set_xlabel('RA', size=15)
             # Dec
             yticks = self.ax_main.get_yticks()
             RA, Dec = self.wcs.wcs_pix2world([self.cur_x] * len(yticks), yticks, 0)
             ylabels = Angle(Dec * u.deg).to_string(u.deg, precision=1)
+            self.ax_main.set_yticks(yticks)
             self.ax_main.set_yticklabels(ylabels)
             self.ax_main.set_ylabel('Dec', size=15)
 
@@ -154,13 +156,17 @@ class PointMover:
                 break
         # self.zunit
         self.zunit = 'unidentified_keyword'
-        zunit_keywords = set()
+        zunit_keywords = {'CUNIT3'}
         for kw in zunit_keywords:
             if kw in header:
                 self.zunit = header[kw].strip()
                 break
         # wcs stuff
-        self.wcs = WCS(header, naxis=2)        
+        self.wcs = WCS(header, naxis=2)
+        # spectral stuff
+        self.crval3 = header['CRVAL3'] if 'CRVAL3' in header else None
+        self.cdelt3 = header['CDELT3'] if 'CDELT3' in header else None
+        self.crpix3 = header['CRPIX3'] if 'CRPIX3' in header else None
 
     def __call__(self, event):
         #
@@ -201,15 +207,13 @@ class PointMover:
         self.fig.canvas.draw()
 
     def reset_title(self):
-        xlabel, ylabel, zlabel = '', '', ''
+        xlabel, ylabel, zlabel = '', '', 'N/A'
         if self.wcs is not None:
             RA, Dec = self.wcs.wcs_pix2world([self.cur_x], [self.cur_y], 0)
             xlabel = Angle(RA * u.deg).to_string(u.hour, precision=1)[0]
             ylabel = Angle(Dec * u.deg).to_string(u.deg, precision=1)[0]
-            if self.zunit != 'unidentified_keyword':
-                assert False, "self.zunit for title not implemented yet!"
-            else:
-                zlabel ='N/A'
+            if self.cdelt3 is not None:
+                zlabel = str(int((self.cur_z - self.crpix3) * self.cdelt3 + self.crval3)) + ' ' + self.zunit
         if self.naxis == 3:
             title = f'Image=({self.cur_x}, {self.cur_y}, {self.cur_z}) \n Physical=({xlabel}, {ylabel}, {zlabel})'
         elif self.naxis == 2:
@@ -236,6 +240,7 @@ class PointMover:
             xticks = self.ax_1.get_xticks()
             RA, Dec = self.wcs.wcs_pix2world(xticks, [self.cur_y] * len(xticks), 0)
             xlabels = Angle(RA * u.deg).to_string(u.hour, precision=1)
+            self.ax_1.set_xticks(xticks)
             self.ax_1.set_xticklabels(xlabels, rotation=30)
         self.ax_1.set_xlabel('x: physical', color=self.color_x)
         self.ax_1.set_ylabel(self.unit)
@@ -259,6 +264,7 @@ class PointMover:
             xticks = self.ax_2.get_xticks()
             RA, Dec = self.wcs.wcs_pix2world([self.cur_x] * len(xticks), xticks, 0)
             xlabels = Angle(Dec * u.deg).to_string(u.deg, precision=1)
+            self.ax_2.set_xticks(xticks)
             self.ax_2.set_xticklabels(xlabels, rotation=30)
         self.ax_2.set_xlabel('y: physical', color=self.color_y)
         self.ax_2.set_ylabel(self.unit)
@@ -275,6 +281,11 @@ class PointMover:
           self.ax_3.set_ylim(self.lim)
           if self.logscale:
               self.ax_3.set_yscale('log')
+          if self.zunit != 'unidentified_keyword':
+              xticks = self.ax_3.get_xticks()
+              vel = ((xticks - self.crpix3) * self.cdelt3 + self.crval3).astype(int)
+              self.ax_3.set_xticks(xticks)
+              self.ax_3.set_xticklabels(vel, rotation=30)
           self.ax_3.set_xlabel(f'z: physical [{self.zunit}]', color=self.color_z)
           self.ax_3.set_ylabel(self.unit)
           self.ax_3.legend(loc='upper left')
